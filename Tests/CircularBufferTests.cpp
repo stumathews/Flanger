@@ -179,6 +179,22 @@ TEST_F(CircularBufferTests, ReadNewestHead)
 	EXPECT_EQ(m_Buffer.ReadNewestHead(), 5);
 }
 
+
+TEST_F(CircularBufferTests, ReadNext)
+{
+	cbuf<float> m_Buffer(5); //[0,0,0,0]
+	m_Buffer.Put(1.0); //[1,0,0,0]
+	m_Buffer.Put(2.0); //[1,2,0,0]
+	m_Buffer.Put(3.0); //[1,2,3,0]
+	m_Buffer.Put(4.0); //[1,2,3,4]
+	m_Buffer.Put(5.0); //[1,2,3,4]
+
+	ASSERT_EQ(m_Buffer.ReadNext(),1);
+	ASSERT_EQ(m_Buffer.ReadNext(), 2);
+	ASSERT_EQ(m_Buffer.ReadNext(), 3);
+	ASSERT_EQ(m_Buffer.ReadNext(), 4);
+}
+
 TEST_F(CircularBufferTests, GetNewestIndex)
 {
 	cbuf<float> m_Buffer(4); //[0,0,0,0]

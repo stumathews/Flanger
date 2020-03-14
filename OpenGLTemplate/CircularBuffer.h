@@ -99,4 +99,12 @@ public:
 		}
 		cout << "]" << endl;;
 	}
+
+	T ReadNext()
+	{
+		auto val = m_Buffer[GetWriteIndex()];
+		m_WriteIndex = (m_WriteIndex + 1) % m_Size;
+		
+		return val;
+	}
 };
