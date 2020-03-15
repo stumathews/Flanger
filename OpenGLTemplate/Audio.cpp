@@ -84,68 +84,32 @@ void FmodErrorCheck(FMOD_RESULT result)
 
 // DSP callback
 FMOD_RESULT F_CALLBACK DSPCallback(FMOD_DSP_STATE *dsp_state, float *inbuffer, float *outbuffer, unsigned int length, int inchannels, int *outchannels)
-{
-	FMOD::DSP *thisdsp = (FMOD::DSP *)dsp_state->instance;
-	
+{	
 	for (unsigned int n = 0; n < length; n++)
 	{
 		for (int chan = 0; chan < *outchannels; chan++)
 		{
 			const auto x = &inbuffer[(n * inchannels) + chan];
 			auto y = &outbuffer[(n * *outchannels) + chan];
-				
-			/*if (chan == 0)
-				cbuffLeft.Put(*x);
-			if (chan == 1)
-				cbuffRight.Put(*x);*/
 		}
-
 		
 		static float time = 0;
-		float depth = 0.5;
-		auto sineAtSample = [](const unsigned nn, float phase = 0, float frequency = 200)
-		{
-			float amplitude = 1;
-			
-			if (time >= std::numeric_limits<float>::max()) {
-				time = 0.0;
-			}
+		const auto depth = 0.5f;
 
-			const auto val = amplitude * sin(2 * M_PI * frequency * time + phase);
-			time += (float)1/44100;
+		// Sinusoid modulation of delay parameter
+		auto M = [](const unsigned sample_n)->float
+		{
+			const auto vol_factor = 100;
+			const auto cycles_per_second = 0.01f;
+			const float val = 1 + sin(2 * M_PI * cycles_per_second * sample_n * time) * vol_factor;
+			time += static_cast<float>(1) / 44100;
 			return val;
 		};
 
-		// Sinusodial modulation of delay
-		auto M = [](int nn)->float
-		{
-			if (time >= std::numeric_limits<float>::max()) {
-				time = 0.0;
-			}
-			
-			const float cycles_per_second = 0.1;
-			float val = 1 + sin(2 * M_PI * cycles_per_second * nn * time) * 10;
-			time += ((float)1 / 44100);
-			return val;
-		};
+		const auto modulated_delay = static_cast<int>(-M(n));
 
-		// Triangle modulation of delay
-		auto TM = [](int nn)->float
-		{
-			if (time >= std::numeric_limits<float>::max()) {
-				time = 0.0;
-			}
-			float waveAPhase1 = 0;
-			
-			float val =  1 / sin(cos(nn));
-			time += ((float)1 / 44100);
-			return val;
-		};
-
-		int delay = -TM(n);
-
-		outbuffer[(n * *outchannels) + 0] = outbuffer[(n * *outchannels) + 0] + (depth * cbuffLeft.ReadN(delay));
-		outbuffer[(n * *outchannels) + 0] = outbuffer[(n * *outchannels) + 0] + (depth * cbuffRight.ReadN(delay));
+		outbuffer[(n * *outchannels) + 0] = outbuffer[(n * *outchannels) + 0] + (depth * cbuffLeft.ReadN(modulated_delay));
+		outbuffer[(n * *outchannels) + 0] = outbuffer[(n * *outchannels) + 0] + (depth * cbuffRight.ReadN(modulated_delay));
 		
 		cbuffLeft.Put(outbuffer[(n * *outchannels) + 0]);
 		cbuffRight.Put(outbuffer[(n * *outchannels) + 1]);
@@ -232,7 +196,7 @@ bool CAudio::PlayEventSound()
 		return false;
 
 	// Inject a custom DSP unit into the channel
-	m_soundChannel->addDSP(0, m_dsp);
+	//m_soundChannel->addDSP(0, m_dsp);
 	return true;
 }
 
@@ -261,7 +225,7 @@ bool CAudio::PlayMusicStream()
 		return false;
 
 	//// Inject a custom DSP unit into the channel
-	//m_musicChannel->addDSP(0, m_dsp);
+	m_musicChannel->addDSP(0, m_dsp);
 
 	return true;
 }
