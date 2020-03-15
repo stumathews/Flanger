@@ -154,7 +154,7 @@ bool CAudio::Initialise(CCamera* camera)
 		return false;
 
 	// Create the DSP effect
-	{
+	/*{
 		FMOD_DSP_DESCRIPTION dspdesc;
 		memset(&dspdesc, 0, sizeof(dspdesc));
 
@@ -164,10 +164,18 @@ bool CAudio::Initialise(CCamera* camera)
 		dspdesc.read = DSPCallback;
 
 		result = m_FmodSystem->createDSP(&dspdesc, &m_dsp);
+		
 		FmodErrorCheck(result);
 
 		if (result != FMOD_OK)
 			return false;
+	}*/
+
+	{
+		// crete flanger
+		
+		m_FmodSystem->createDSPByType(FMOD_DSP_TYPE_FLANGE, &m_flange);
+		
 	}
 
 	return true;
@@ -225,8 +233,8 @@ bool CAudio::PlayMusicStream()
 		return false;
 
 	//// Inject a custom DSP unit into the channel
-	m_musicChannel->addDSP(0, m_dsp);
-
+	//m_musicChannel->addDSP(0, m_dsp);
+	m_musicChannel->addDSP(0, m_flange);
 	return true;
 }
 

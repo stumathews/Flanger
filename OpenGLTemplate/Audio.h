@@ -31,6 +31,7 @@ private:
 	FMOD::Channel* m_soundChannel;
 
 	FMOD::DSP *m_dsp;
+	FMOD::DSP* m_flange;
 
 };
 
