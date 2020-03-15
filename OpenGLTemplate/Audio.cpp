@@ -106,7 +106,7 @@ FMOD_RESULT F_CALLBACK DSPCallback(FMOD_DSP_STATE *dsp_state, float *inbuffer, f
 			return val;
 		};
 
-		const auto modulated_delay = static_cast<int>(-M(n));
+		const auto modulated_delay = static_cast<int>(M(n)); // See implementation of M(n)
 
 		outbuffer[(n * *outchannels) + 0] = inbuffer[(n * inchannels) + 0] + (depth * cbuffLeft.ReadN(modulated_delay));
 		outbuffer[(n * *outchannels) + 1] = inbuffer[(n * inchannels) + 1] + (depth * cbuffRight.ReadN(modulated_delay));
@@ -116,15 +116,6 @@ FMOD_RESULT F_CALLBACK DSPCallback(FMOD_DSP_STATE *dsp_state, float *inbuffer, f
 		
 	}
 	return FMOD_OK;
-}
-
-
-// Save the left and right channel chunks into separate buffers (for clarity sake so we can process them separately)
-void RecordInputSignal(unsigned int chunkSize, int* outchannels, float* inbuffer, int inchannels, float* outbuffer)
-{
-	
-
-	
 }
 
 CAudio::CAudio()

@@ -20,21 +20,16 @@ private:
 	int m_WriteIndex;
 	int m_ReadIndex;
 
-	// Internal functions for calulating indexes relative to n (last sample)
+	// Internal functions for calculating indexes relative to n (last sample)
 	int GetPrevNIndex(int n = 0) const { return Wrap(GetNewestIndex() - n, m_Size); }
 	int Wrap(int n, int arrayLength) const { return ((n % arrayLength) + arrayLength) % arrayLength; }
 
 public:
-	cbuf(unsigned size) :m_Size(size), m_WriteIndex(0), m_ReadIndex(0), m_Buffer(vector<T>(size))
-	{
-
-	}
+	cbuf(unsigned size) :m_Size(size), m_WriteIndex(0), m_ReadIndex(0), m_Buffer(vector<T>(size)) { }
 
 	cbuf(T* values, unsigned length) : cbuf(length)
 	{
-
-		m_Buffer.clear();
-		
+		m_Buffer.clear();		
 		m_Buffer.insert(m_Buffer.end(), &values[0], &values[length]);
 	}
 	
