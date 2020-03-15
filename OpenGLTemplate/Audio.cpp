@@ -94,13 +94,13 @@ FMOD_RESULT F_CALLBACK DSPCallback(FMOD_DSP_STATE *dsp_state, float *inbuffer, f
 		}
 		
 		static float time = 0;
-		const auto depth = 0.5f;
+		const auto depth = 1.0f;
 
 		// Sinusoid modulation of delay parameter
 		auto M = [](const unsigned sample_n)->float
 		{
 			const auto vol_factor = 100;
-			const auto cycles_per_second = 0.01f;
+			const auto cycles_per_second = 0.1f;
 			const float val = 1 + sin(2 * M_PI * cycles_per_second * sample_n * time) * vol_factor;
 			time += static_cast<float>(1) / 44100;
 			return val;
