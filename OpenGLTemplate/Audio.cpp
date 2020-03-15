@@ -12,7 +12,7 @@ cbuf<float> cbuffLeft(1024);
 cbuf<float> cbuffRight(1024);
 
 // historic buffer of samples for n-1.. calculation
-cbuf<float> prevBuf(88000);
+cbuf<float> prevBuf(1024);
 
 // Quick and easy access to the camera
 CCamera* _camera;
@@ -93,23 +93,16 @@ FMOD_RESULT F_CALLBACK DSPCallback(FMOD_DSP_STATE *dsp_state, float *inbuffer, f
 		{
 			const auto x = &inbuffer[(n * inchannels) + chan];
 			auto y = &outbuffer[(n * *outchannels) + chan];
-			
-
-			if (chan == 0)
+				
+			/*if (chan == 0)
 				cbuffLeft.Put(*x);
 			if (chan == 1)
-				cbuffRight.Put(*x);
+				cbuffRight.Put(*x);*/
 		}
 
-		const auto left_chunk = cbuffLeft.ToArray();
-		const auto right_chunk = cbuffRight.ToArray();
-		auto yl = &outbuffer[(n * *outchannels) + 0];
-		auto yr = &outbuffer[(n * *outchannels) + 1];
-		auto xl = &inbuffer[(n * inchannels) + 0];
-		auto xr = &inbuffer[(n * inchannels) + 1];
-		static auto progression = 0;
+		
 		static float time = 0;
-		int depth = 1;
+		float depth = 0.5;
 		auto sineAtSample = [](const unsigned nn, float phase = 0, float frequency = 200)
 		{
 			float amplitude = 1;
@@ -123,49 +116,40 @@ FMOD_RESULT F_CALLBACK DSPCallback(FMOD_DSP_STATE *dsp_state, float *inbuffer, f
 			return val;
 		};
 
+		// Sinusodial modulation of delay
 		auto M = [](int nn)->float
 		{
 			if (time >= std::numeric_limits<float>::max()) {
 				time = 0.0;
 			}
 			
-			const float cycles_per_second = 0.01;
-			float val = 1 + sin(2 * M_PI * cycles_per_second * nn * time) * 120;
+			const float cycles_per_second = 0.1;
+			float val = 1 + sin(2 * M_PI * cycles_per_second * nn * time) * 10;
 			time += ((float)1 / 44100);
 			return val;
 		};
 
+		// Triangle modulation of delay
 		auto TM = [](int nn)->float
 		{
 			if (time >= std::numeric_limits<float>::max()) {
 				time = 0.0;
 			}
-
-			const float cycles_per_second = 0.2;
-			float val = 1 + sin(2 * M_PI * cycles_per_second * nn * time);
+			float waveAPhase1 = 0;
+			
+			float val =  1 / sin(cos(nn));
 			time += ((float)1 / 44100);
 			return val;
 		};
 
-		int delay = -M(n);
-		int withFilter = 1;
-		float xn = inbuffer[(n * inchannels) + 0];
-		float current = sineAtSample(n);
-		float prev1 = prevBuf.ReadN(delay);
-		outbuffer[(n * *outchannels) + 0] = xn +prevBuf.ReadN(delay);
-		//*yr = sineAtSample(n);
+		int delay = -TM(n);
 
-		//*yl = sineAtSample(n) + prevBuf.ReadN(-1);
-		//*yr = 0;//M(n) + depth * prevBuf.ReadN(delay);
+		outbuffer[(n * *outchannels) + 0] = outbuffer[(n * *outchannels) + 0] + (depth * cbuffLeft.ReadN(delay));
+		outbuffer[(n * *outchannels) + 0] = outbuffer[(n * *outchannels) + 0] + (depth * cbuffRight.ReadN(delay));
 		
-		//prevBuf.Put(inbuffer[(n * inchannels) + 0]);
-		prevBuf.Put(xn);
-		// We will trigger the filter using convolution when we're flying > 20 units off the ground!
-		/*if (_camera->GetPosition().y > 20)
-		{
-			ConvolutionHelper::convolution_sum(left_chunk, chunkSize, n, &outbuffer[(n * *outchannels) + 0], bCoefficients, 167, &prevBuf, _camera->GetPosition().x + 1);
-			ConvolutionHelper::convolution_sum(right_chunk, chunkSize, n, &outbuffer[(n * *outchannels) + 1], bCoefficients, 167, &prevBuf, _camera->GetPosition().x + 1);
-		}*/
+		cbuffLeft.Put(outbuffer[(n * *outchannels) + 0]);
+		cbuffRight.Put(outbuffer[(n * *outchannels) + 1]);
+		
 	}
 	return FMOD_OK;
 }
