@@ -12,11 +12,12 @@ cbuf<float> cbuffLeft(1024);
 cbuf<float> cbuffRight(1024);
 
 // historic buffer of samples for n-1.. calculation
-cbuf<float> prevBuf(1024);
+cbuf<float> prevBuf(88000);
 
 // Quick and easy access to the camera
 CCamera* _camera;
 Game* _game;
+double dt = 0;
 
 // Lo-pass filter passes freqs 0-1000 Hz and removes those > 1000 Hz
 // Run using python filter design:
@@ -85,9 +86,87 @@ void FmodErrorCheck(FMOD_RESULT result)
 FMOD_RESULT F_CALLBACK DSPCallback(FMOD_DSP_STATE *dsp_state, float *inbuffer, float *outbuffer, unsigned int length, int inchannels, int *outchannels)
 {
 	FMOD::DSP *thisdsp = (FMOD::DSP *)dsp_state->instance;
+	
+	for (unsigned int n = 0; n < length; n++)
+	{
+		for (int chan = 0; chan < *outchannels; chan++)
+		{
+			const auto x = &inbuffer[(n * inchannels) + chan];
+			auto y = &outbuffer[(n * *outchannels) + chan];
+			
 
-	RecordInputSignal(length, outchannels, inbuffer, inchannels, outbuffer);
+			if (chan == 0)
+				cbuffLeft.Put(*x);
+			if (chan == 1)
+				cbuffRight.Put(*x);
+		}
 
+		const auto left_chunk = cbuffLeft.ToArray();
+		const auto right_chunk = cbuffRight.ToArray();
+		auto yl = &outbuffer[(n * *outchannels) + 0];
+		auto yr = &outbuffer[(n * *outchannels) + 1];
+		auto xl = &inbuffer[(n * inchannels) + 0];
+		auto xr = &inbuffer[(n * inchannels) + 1];
+		static auto progression = 0;
+		static float time = 0;
+		int depth = 1;
+		auto sineAtSample = [](const unsigned nn, float phase = 0, float frequency = 200)
+		{
+			float amplitude = 1;
+			
+			if (time >= std::numeric_limits<float>::max()) {
+				time = 0.0;
+			}
+
+			const auto val = amplitude * sin(2 * M_PI * frequency * time + phase);
+			time += (float)1/44100;
+			return val;
+		};
+
+		auto M = [](int nn)->float
+		{
+			if (time >= std::numeric_limits<float>::max()) {
+				time = 0.0;
+			}
+			
+			const float cycles_per_second = 0.01;
+			float val = 1 + sin(2 * M_PI * cycles_per_second * nn * time) * 120;
+			time += ((float)1 / 44100);
+			return val;
+		};
+
+		auto TM = [](int nn)->float
+		{
+			if (time >= std::numeric_limits<float>::max()) {
+				time = 0.0;
+			}
+
+			const float cycles_per_second = 0.2;
+			float val = 1 + sin(2 * M_PI * cycles_per_second * nn * time);
+			time += ((float)1 / 44100);
+			return val;
+		};
+
+		int delay = -M(n);
+		int withFilter = 1;
+		float xn = inbuffer[(n * inchannels) + 0];
+		float current = sineAtSample(n);
+		float prev1 = prevBuf.ReadN(delay);
+		outbuffer[(n * *outchannels) + 0] = xn +prevBuf.ReadN(delay);
+		//*yr = sineAtSample(n);
+
+		//*yl = sineAtSample(n) + prevBuf.ReadN(-1);
+		//*yr = 0;//M(n) + depth * prevBuf.ReadN(delay);
+		
+		//prevBuf.Put(inbuffer[(n * inchannels) + 0]);
+		prevBuf.Put(xn);
+		// We will trigger the filter using convolution when we're flying > 20 units off the ground!
+		/*if (_camera->GetPosition().y > 20)
+		{
+			ConvolutionHelper::convolution_sum(left_chunk, chunkSize, n, &outbuffer[(n * *outchannels) + 0], bCoefficients, 167, &prevBuf, _camera->GetPosition().x + 1);
+			ConvolutionHelper::convolution_sum(right_chunk, chunkSize, n, &outbuffer[(n * *outchannels) + 1], bCoefficients, 167, &prevBuf, _camera->GetPosition().x + 1);
+		}*/
+	}
 	return FMOD_OK;
 }
 
@@ -95,29 +174,7 @@ FMOD_RESULT F_CALLBACK DSPCallback(FMOD_DSP_STATE *dsp_state, float *inbuffer, f
 // Save the left and right channel chunks into separate buffers (for clarity sake so we can process them separately)
 void RecordInputSignal(unsigned int chunkSize, int* outchannels, float* inbuffer, int inchannels, float* outbuffer)
 {
-	for (unsigned int n = 0; n < chunkSize; n++)
-	{
-		for (int chan = 0; chan < *outchannels; chan++)
-		{
-			const auto x = &inbuffer[(n * inchannels) + chan];
-			auto y = &outbuffer[(n * *outchannels) + chan];
-
-			if (chan == 0)
-				cbuffLeft.Put(*x);			
-			if (chan == 1)
-				cbuffRight.Put(*x);						
-		}
-
-		const auto left_chunk = cbuffLeft.ToArray();
-		const auto right_chunk = cbuffRight.ToArray();
-
-		// We will trigger the filter using convolution when we're flying > 20 units off the ground!
-		if (_camera->GetPosition().y > 20)
-		{
-			ConvolutionHelper::convolution_sum(left_chunk, chunkSize, n, &outbuffer[(n * *outchannels) + 0], bCoefficients, 167, &prevBuf, _camera->GetPosition().x + 1);
-			ConvolutionHelper::convolution_sum(right_chunk, chunkSize, n, &outbuffer[(n * *outchannels) + 1], bCoefficients, 167, &prevBuf, _camera->GetPosition().x + 1);
-		}
-	}
+	
 
 	
 }
@@ -185,10 +242,13 @@ bool CAudio::LoadEventSound(char *filename)
 // Play an event sound
 bool CAudio::PlayEventSound()
 {
-	result = m_FmodSystem->playSound(m_eventSound, NULL, false, NULL);
+	result = m_FmodSystem->playSound(m_eventSound, NULL, false, &m_soundChannel);
 	FmodErrorCheck(result);
 	if (result != FMOD_OK)
 		return false;
+
+	// Inject a custom DSP unit into the channel
+	m_soundChannel->addDSP(0, m_dsp);
 	return true;
 }
 
@@ -216,13 +276,14 @@ bool CAudio::PlayMusicStream()
 	if (result != FMOD_OK)
 		return false;
 
-	// Inject a custom DSP unit into the channel
-	m_musicChannel->addDSP(0, m_dsp);
+	//// Inject a custom DSP unit into the channel
+	//m_musicChannel->addDSP(0, m_dsp);
 
 	return true;
 }
 
-void CAudio::Update()
+void CAudio::Update(double t)
 {
+	dt = t;
 	m_FmodSystem->update();
 }

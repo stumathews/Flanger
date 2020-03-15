@@ -277,6 +277,28 @@ TEST_F(CircularBufferTests, PreviousN)
 	ASSERT_EQ(m_Buffer.ReadN(1), 3);
 }
 
+TEST_F(CircularBufferTests, PreviousNTest2)
+{
+
+	cbuf<float> m_Buffer(7);
+	m_Buffer.Put(279);
+	ASSERT_EQ(m_Buffer.ReadN(1), 0);
+	
+	m_Buffer.Put(281);
+	ASSERT_EQ(m_Buffer.ReadN(-1), 279);
+	
+	m_Buffer.Put(128);
+	ASSERT_EQ(m_Buffer.ReadN(-1), 281);
+	
+	m_Buffer.Put(786);
+	ASSERT_EQ(m_Buffer.ReadN(-1), 128);
+	ASSERT_EQ(m_Buffer.ReadN(0), 786);
+	ASSERT_EQ(m_Buffer.ReadN(-1), 128);
+	ASSERT_EQ(m_Buffer.ReadN(-2), 281);
+	ASSERT_EQ(m_Buffer.ReadN(-3), 279);
+	
+	
+}
 TEST_F(CircularBufferTests, Equals)
 {
 	cbuf<float> m_Buffer(4); //[0,0,0,0]

@@ -13,13 +13,10 @@ public:
 						   cbuf<float>* prev_samples, // access to the previous samples
 						   const float coefficient_scale = 1) // Uses the camera's X position to scale the coefficients
 	{
-		const auto swapped_xn = chunk[(num_samples_per_chunk - 1) - n];
+		const auto xn = chunk[(num_samples_per_chunk - 1) - n];
 		
-
-		*yn = b_coefficients[0] * swapped_xn; // x[n] * b[0]
-
-		for (auto b = 0; b < num_coefficients - 1; b++) // x[n-1] * b[1] etc...
-			*yn += (prev_samples->ReadN(-b) * (b_coefficients[b] * coefficient_scale));
+		
+		*yn = 0;// prev_samples->ReadN(-5);
 
 		prev_samples->Put(chunk[n]);
 	}

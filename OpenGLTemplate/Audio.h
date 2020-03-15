@@ -17,7 +17,7 @@ public:
 	bool PlayEventSound();
 	bool LoadMusicStream(char *filename);
 	bool PlayMusicStream();
-	void Update();
+	void Update(double dt);
 
 	
 private:
@@ -28,6 +28,7 @@ private:
 
 	FMOD::Sound *m_music;
 	FMOD::Channel *m_musicChannel;
+	FMOD::Channel* m_soundChannel;
 
 	FMOD::DSP *m_dsp;
 
