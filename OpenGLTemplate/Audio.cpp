@@ -83,7 +83,7 @@ void FmodErrorCheck(FMOD_RESULT result)
 }
 
 // DSP callback
-FMOD_RESULT F_CALLBACK DSPCallback(FMOD_DSP_STATE *dsp_state, float *inbuffer, float *outbuffer, unsigned int length, int inchannels, int *outchannels)
+FMOD_RESULT F_CALLBACK DSPCallbackWithDelay(FMOD_DSP_STATE *dsp_state, float *inbuffer, float *outbuffer, unsigned int length, int inchannels, int *outchannels)
 {	
 	for (unsigned int n = 0; n < length; n++)
 	{
@@ -91,29 +91,39 @@ FMOD_RESULT F_CALLBACK DSPCallback(FMOD_DSP_STATE *dsp_state, float *inbuffer, f
 		{
 			const auto x = &inbuffer[(n * inchannels) + chan];
 			auto y = &outbuffer[(n * *outchannels) + chan];
-		}
-		
-		static float time = 0;
-		const auto depth = 1.0f;
 
-		// Sinusoid modulation of delay parameter
-		auto M = [](const unsigned sample_n)->float
-		{
-			const auto vol_factor = 100;
-			const auto cycles_per_second = 0.1f;
-			const float val = 1 + sin(2 * M_PI * cycles_per_second * sample_n * time) * vol_factor;
-			time += static_cast<float>(1) / 44100;
-			return val;
-		};
+			static float time = 0;
+			const auto depth = 1.0f;
 
-		const auto modulated_delay = static_cast<int>(M(n)); // See implementation of M(n)
-
-		outbuffer[(n * *outchannels) + 0] = inbuffer[(n * inchannels) + 0] + (depth * cbuffLeft.ReadN(modulated_delay));
-		outbuffer[(n * *outchannels) + 1] = inbuffer[(n * inchannels) + 1] + (depth * cbuffRight.ReadN(modulated_delay));
+			// Sin wave modulation of delay parameter
+			auto M = [](const unsigned sample_n)->float
+			{
+				const auto vol_factor = 100;
+				const auto cycles_per_second = 0.1f;
+				const float val = 1 + sin(2 * M_PI * cycles_per_second * sample_n * time) * vol_factor;
+				time += static_cast<float>(1) / 44100;
+				return val;
+			};
+			
+			const auto modulated_delay = static_cast<int>(M(n)); // See implementation of M(n)
+			outbuffer[(n * *outchannels) + chan] = inbuffer[(n * inchannels) + chan] + (depth * cbuffLeft.ReadN(modulated_delay));			
+		}		
 		
 		cbuffLeft.Put(inbuffer[(n * inchannels) + 0]);
 		cbuffRight.Put(inbuffer[(n * inchannels) + 1]);
 		
+	}
+	return FMOD_OK;
+}
+
+FMOD_RESULT F_CALLBACK DSPCallback(FMOD_DSP_STATE* dsp_state, float* inbuffer, float* outbuffer, unsigned int length, int inchannels, int* outchannels)
+{
+	for (unsigned int n = 0; n < length; n++)
+	{
+		for (int chan = 0; chan < *outchannels; chan++)
+		{
+			outbuffer[(n * *outchannels) + 0] = inbuffer[(n * inchannels) + chan];
+		}
 	}
 	return FMOD_OK;
 }
@@ -146,6 +156,22 @@ bool CAudio::Initialise(CCamera* camera)
 
 	// Create the DSP effect
 	{
+		FMOD_DSP_DESCRIPTION dspdescDelay;
+		memset(&dspdescDelay, 0, sizeof(dspdescDelay));
+
+		strncpy_s(dspdescDelay.name, "DSP with delay", sizeof(dspdescDelay.name));
+		dspdescDelay.numinputbuffers = 1;
+		dspdescDelay.numoutputbuffers = 1;
+		dspdescDelay.read = DSPCallbackWithDelay;
+
+		result = m_FmodSystem->createDSP(&dspdescDelay, &m_dsp_delay);
+		FmodErrorCheck(result);
+
+		if (result != FMOD_OK)
+			return false;
+	}
+
+	{
 		FMOD_DSP_DESCRIPTION dspdesc;
 		memset(&dspdesc, 0, sizeof(dspdesc));
 
@@ -155,6 +181,7 @@ bool CAudio::Initialise(CCamera* camera)
 		dspdesc.read = DSPCallback;
 
 		result = m_FmodSystem->createDSP(&dspdesc, &m_dsp);
+		
 		FmodErrorCheck(result);
 
 		if (result != FMOD_OK)
@@ -217,6 +244,7 @@ bool CAudio::PlayMusicStream()
 
 	//// Inject a custom DSP unit into the channel
 	m_musicChannel->addDSP(0, m_dsp);
+	m_musicChannel->addDSP(0, m_dsp_delay);
 
 	return true;
 }

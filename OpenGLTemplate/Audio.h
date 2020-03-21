@@ -30,7 +30,8 @@ private:
 	FMOD::Channel *m_musicChannel;
 	FMOD::Channel* m_soundChannel;
 
-	FMOD::DSP *m_dsp;
+	FMOD::DSP *m_dsp_delay;
+	FMOD::DSP* m_dsp;
 
 };
 
