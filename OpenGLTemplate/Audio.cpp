@@ -106,7 +106,7 @@ FMOD_RESULT F_CALLBACK DSPCallbackWithDelay(FMOD_DSP_STATE *dsp_state, float *in
 			};
 			
 			const auto modulated_delay = static_cast<int>(M(n)); // See implementation of M(n)
-			outbuffer[(n * *outchannels) + chan] = inbuffer[(n * inchannels) + chan] + (depth * cbuffLeft.ReadN(modulated_delay));			
+			outbuffer[(n * *outchannels) + chan] = *x + (depth * cbuffLeft.ReadN(modulated_delay));			
 		}		
 		
 		cbuffLeft.Put(inbuffer[(n * inchannels) + 0]);
