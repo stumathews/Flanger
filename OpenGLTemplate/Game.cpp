@@ -35,6 +35,8 @@ Source code drawn from a number of sources and examples, including contributions
 #include "OpenAssetImportMesh.h"
 #include "Audio.h"
 
+CCamera* camera;
+
 // Constructor
 Game::Game()
 {
@@ -87,6 +89,7 @@ void Game::Initialise()
 
 	/// Create objects
 	m_pCamera = new CCamera;
+	camera = m_pCamera;
 	m_pSkybox = new CSkybox;
 	m_pShaderPrograms = new vector <CShaderProgram *>;
 	m_pPlanarTerrain = new CPlane;
@@ -323,6 +326,7 @@ void Game::DisplayFrameRate()
 		fontProgram->SetUniform("matrices.projMatrix", m_pCamera->GetOrthographicProjectionMatrix());
 		fontProgram->SetUniform("vColour", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
 		m_pFtFont->Render(20, height - 20, 20, "FPS: %d", m_framesPerSecond);
+		m_pFtFont->Render(20, height - 40, 20, "X: %d Y: %d", camera->GetPosition().x, camera->GetPosition().y);
 	}
 }
 

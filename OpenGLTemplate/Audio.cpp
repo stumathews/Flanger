@@ -91,26 +91,16 @@ FMOD_RESULT F_CALLBACK DSPCallbackWithDelay(FMOD_DSP_STATE *dsp_state, float *in
 		{
 			const auto x = &inbuffer[(n * inchannels) + chan];
 			auto y = &outbuffer[(n * *outchannels) + chan];
+						
+			const auto delay = _camera->GetPosition().x;
+			*y = *x + ((chan == 0) ? cbuffLeft.ReadN(delay) : cbuffRight.ReadN(delay));
 
-			static float time = 0;
-			const auto depth = 1.0f;
-
-			// Sin wave modulation of delay parameter
-			auto M = [](const unsigned sample_n)->float
-			{
-				const auto vol_factor = 100;
-				const auto cycles_per_second = 0.1f;
-				const float val = 1 + sin(2 * M_PI * cycles_per_second * sample_n * time) * vol_factor;
-				time += static_cast<float>(1) / 44100;
-				return val;
-			};
+			if(chan == 0)
+				cbuffLeft.Put(inbuffer[(n * inchannels) + 0]);
+			if (chan == 1)
+				cbuffRight.Put(inbuffer[(n * inchannels) + 1]);					
 			
-			const auto modulated_delay = static_cast<int>(M(n)); // See implementation of M(n)
-			outbuffer[(n * *outchannels) + chan] = *x + (depth * cbuffLeft.ReadN(modulated_delay));			
 		}		
-		
-		cbuffLeft.Put(inbuffer[(n * inchannels) + 0]);
-		cbuffRight.Put(inbuffer[(n * inchannels) + 1]);
 		
 	}
 	return FMOD_OK;
@@ -244,7 +234,7 @@ bool CAudio::PlayMusicStream()
 
 	//// Inject a custom DSP unit into the channel
 	m_musicChannel->addDSP(0, m_dsp);
-	m_musicChannel->addDSP(0, m_dsp_delay);
+	m_musicChannel->addDSP(1, m_dsp_delay);
 
 	return true;
 }
