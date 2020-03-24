@@ -87,19 +87,22 @@ FMOD_RESULT F_CALLBACK DSPCallbackWithDelay(FMOD_DSP_STATE *dsp_state, float *in
 {	
 	for (unsigned int n = 0; n < length; n++)
 	{
-		for (int chan = 0; chan < *outchannels; chan++)
+		for (auto chan = 0; chan < *outchannels; chan++)
 		{
 			const auto x = &inbuffer[(n * inchannels) + chan];
 			auto y = &outbuffer[(n * *outchannels) + chan];
-						
-			const auto delay = _camera->GetPosition().x;
-			*y = *x + ((chan == 0) ? cbuffLeft.ReadN(delay) : cbuffRight.ReadN(delay));
+			auto g = 1;
+			auto M = [&chan](int nn) -> float
+			{
+				return (chan == 0) ? cbuffLeft.ReadN(nn) : cbuffRight.ReadN(nn);
+			};
+
+			*y = *x + g * M(_camera->GetPosition().x);
 
 			if(chan == 0)
 				cbuffLeft.Put(inbuffer[(n * inchannels) + 0]);
 			if (chan == 1)
-				cbuffRight.Put(inbuffer[(n * inchannels) + 1]);					
-			
+				cbuffRight.Put(inbuffer[(n * inchannels) + 1]);	
 		}		
 		
 	}
